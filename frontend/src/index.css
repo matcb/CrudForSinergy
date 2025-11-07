@@ -33,3 +33,20 @@ button, a {
   @apply bg-gray-400 rounded-full hover:bg-gray-500;
 }
 
+@layer base {
+  :root {
+    --bg: white;
+    --fg: #111;
+  }
+
+  .dark {
+    --bg: #111;
+    --fg: white;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    transition: background-color 0.3s, color 0.3s;
+  }
+}

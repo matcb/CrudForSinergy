@@ -102,7 +102,7 @@ export default function TaskManager() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Cabeçalho */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
