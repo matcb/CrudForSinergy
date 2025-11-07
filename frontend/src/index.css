@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@tailwind utilities;
+
+/* --------------------------------------------------
+   🎨 Estilos globais (opcional)
+   -------------------------------------------------- */
+
+/* Fonte padrão da aplicação */
+body {
+  @apply bg-gray-100 text-gray-800 font-sans antialiased;
+}
+
+/* Estilo padrão para títulos */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold text-gray-900;
+}
+
+/* Corrige o foco de botões e inputs (acessibilidade e UX) */
+button, input, select, textarea {
+  @apply outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2;
+}
+
+/* Transições suaves em elementos interativos */
+button, a {
+  @apply transition duration-200 ease-in-out;
+}
+
+/* Personalização leve de scrollbar (opcional) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 rounded-full hover:bg-gray-500;
+}
+
