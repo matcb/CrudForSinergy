@@ -5,12 +5,21 @@ import TaskModal from '../components/TaskModal';
 import TaskList from '../components/TaskList';
 import TaskStats from '../components/TaskStats';
 import FilterButtons from '../components/FilterButton';
+import {
+  addTask,
+  deleteTask,
+  getAllTasks,
+  updateTask,
+  getTaskById,
+  getTasksByStatus
+} from "../../../db/db"
 
 export default function TaskManager() {
   const [tasks, setTasks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [filter, setFilter] = useState('todas');
+  const [loading, setLoading] = useState(true); 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -19,16 +28,24 @@ export default function TaskManager() {
     status: 'pendente'
   });
 
-  // Carregar tarefas do localStorage
-  useEffect(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
+    useEffect(() => {
+    loadTasks();
   }, []);
 
-  // Salvar tarefas
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
+  const loadTasks = async () => {
+    try {
+      setLoading(true);
+      const allTasks = await getAllTasks();
+      setTasks(allTasks);
+    } catch (error) {
+      console.error('Erro ao carregar tarefas:', error);
+      alert('Erro ao carregar tarefas do banco de dados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   const resetForm = () => setFormData({
     title: '',
@@ -43,73 +60,97 @@ export default function TaskManager() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = e => {
+  // ✅ SUBSTITUIR: handleSubmit com IndexedDB
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editingTask) {
-      setTasks(tasks.map(task =>
-        task.id === editingTask.id
-          ? { ...formData, id: task.id, createdAt: task.createdAt, updatedAt: new Date().toISOString() }
-          : task
-      ));
-      setEditingTask(null);
-    } else {
-      const newTask = {
-        ...formData,
-        id: Date.now(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setTasks([newTask, ...tasks]);
+    if (!formData.title.trim()) {
+      alert('Título é obrigatório!');
+      return;
     }
 
-    resetForm();
-    setIsModalOpen(false);
+    try {
+      if (editingTask) {
+        // Atualizar tarefa existente
+        await updateTask(editingTask.id, formData);
+      } else {
+        // Criar nova tarefa
+        await addTask(formData);
+      }
+      
+      await loadTasks(); // Recarregar lista
+      resetForm();
+      setIsModalOpen(false);
+      setEditingTask(null);
+    } catch (error) {
+      console.error('Erro ao salvar tarefa:', error);
+      alert('Erro ao salvar tarefa');
+    }
   };
 
   const handleEdit = (task) => {
     setEditingTask(task);
     setFormData({
       title: task.title,
-      description: task.description,
+      description: task.description || '',
       priority: task.priority,
-      dueDate: task.dueDate,
+      dueDate: task.dueDate || '',
       status: task.status
     });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
-      setTasks(tasks.filter(t => t.id !== id));
+      try {
+        await deleteTask(id);
+        await loadTasks();
+      } catch (error) {
+        console.error('Erro ao deletar tarefa:', error);
+        alert('Erro ao deletar tarefa');
+      }
     }
   };
 
-  const toggleStatus = (id) => {
-    setTasks(tasks.map(task =>
-      task.id === id
-        ? {
-            ...task,
-            status: task.status === 'concluida' ? 'pendente' : 'concluida',
-            updatedAt: new Date().toISOString()
-          }
-        : task
-    ));
+  const toggleStatus = async (id) => {
+    try {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+
+      const newStatus = task.status === 'concluida' ? 'pendente' : 'concluida';
+      await updateTask(id, { ...task, status: newStatus });
+      await loadTasks();
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status');
+    }
   };
 
   const filteredTasks = tasks.filter(task =>
     filter === 'todas' ? true : task.status === filter
   );
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-semibold">Carregando tarefas...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Cabeçalho */}
+        
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">Gerenciador de Tarefas</h1>
-              <p className="text-gray-600">Organize suas atividades de forma simples</p>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                📦 Gerenciador de Tarefas
+              </h1>
             </div>
             <button
               onClick={() => {
@@ -148,3 +189,7 @@ export default function TaskManager() {
     </div>
   );
 }
+
+
+
+  

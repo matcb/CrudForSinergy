@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import TaskManager from "./pages/TaskManager";
 import ToggleTheme from "./components/ToggleTheme";
 
+
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
 
