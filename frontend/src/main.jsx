@@ -1,11 +1,15 @@
 import React from "react";
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import TaskManager from './App.jsx'
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+import { BrowserRouter } from "react-router-dom";
+import { initDB } from "../../db/db.js";
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-              <TaskManager />
-   </StrictMode>,
-)
+initDB().catch(console.error);
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);

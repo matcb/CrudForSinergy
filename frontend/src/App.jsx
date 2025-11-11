@@ -1,32 +1,32 @@
 import React, { useState, useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import TaskManager from "./pages/TaskManager";
-import ToggleTheme from "./components/ToggleTheme";
-
+import Login from "./pages/Login";
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    localStorage.getItem("isAuthenticated") === "true"
+  );
 
+  
   useEffect(() => {
-    // Detecta se o body já está no modo escuro
-    setDarkMode(document.body.classList.contains("dark"));
+    const handleStorageChange = () => {
+      setIsAuthenticated(localStorage.getItem("isAuthenticated") === "true");
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add("dark");
-    } else {
-      document.body.classList.remove("dark");
-    }
-  }, [darkMode]);
-
   return (
-    <div className="min-h-screen transition-colors duration-500 bg-[var(--bg)] text-[var(--fg)]">
-      {/* Botão de alternar */}
-      <div className="flex justify-end p-4">
-        <ToggleTheme darkMode={darkMode} setDarkMode={setDarkMode} />
-      </div>
-
-      <TaskManager />
-    </div>
+    <Routes>
+      
+      <Route path="/" element={<Login onLogin={() => setIsAuthenticated(true)} />} />
+      <Route
+        path="/tasks"
+        element={isAuthenticated ? <TaskManager /> : <Navigate to="/" replace />}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
