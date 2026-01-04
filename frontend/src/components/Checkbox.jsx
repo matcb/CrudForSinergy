@@ -1,4 +1,3 @@
-// src/components/Checkbox.jsx
 import { forwardRef } from "react";
 
 const Checkbox = forwardRef(
@@ -6,10 +5,8 @@ const Checkbox = forwardRef(
     const handleChange = (e) => {
       const newChecked = e.target.checked;
 
-      // Radix / Headless UI style
       if (onCheckedChange) onCheckedChange(newChecked);
 
-      // Classic HTML onChange (your old code expects this)
       if (onChange) onChange(e);
     };
 

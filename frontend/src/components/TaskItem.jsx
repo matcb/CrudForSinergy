@@ -1,4 +1,3 @@
-// src/components/TaskItem.jsx
 import React from 'react';
 import { Trash2, Edit, Check, X, Clock, AlertCircle } from 'lucide-react';
 

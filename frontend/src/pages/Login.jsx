@@ -11,12 +11,14 @@ const Login = ({ onLogin }) => {
   const [dbReady, setDbReady] = useState(false);
   const navigate = useNavigate();
 
+  const [dbError, setDbError] = useState(null);
+
   useEffect(() => {
     initDB()
       .then(() => setDbReady(true))
       .catch((err) => {
         console.error("DB Init Failed:", err);
-        alert("Failed to load database");
+        setDbError("Failed to load database. Please refresh the page.");
       });
   }, []);
 
@@ -30,21 +32,69 @@ const Login = ({ onLogin }) => {
   });
   const [errors, setErrors] = useState({});
 
+  const sanitizeInput = (input) => {
+    if (typeof input !== "string") return input;
+    return input.trim().replace(/[<>]/g, "");
+  };
+
+  const isValidEmail = (email) => {
+    if (!email || typeof email !== "string") return false;
+    
+    const trimmedEmail = email.trim();
+    const atIndex = trimmedEmail.indexOf("@");
+    const lastDotIndex = trimmedEmail.lastIndexOf(".");
+    
+    if (atIndex <= 0) return false;
+    if (lastDotIndex <= atIndex + 1) return false;
+    if (lastDotIndex === trimmedEmail.length - 1) return false;
+    if (trimmedEmail.includes(" ")) return false;
+    
+    const localPart = trimmedEmail.substring(0, atIndex);
+    const domain = trimmedEmail.substring(atIndex + 1);
+    
+    return localPart.length > 0 && domain.length > 0 && domain.includes(".");
+  };
+
+  const MIN_PASSWORD_LENGTH = 6;
+  const MAX_PASSWORD_LENGTH = 100;
+  const MIN_NAME_LENGTH = 2;
+  const MAX_NAME_LENGTH = 100;
+  const MAX_EMAIL_LENGTH = 255;
+
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email))
+    const email = formData.email ? sanitizeInput(formData.email) : "";
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!isValidEmail(email)) {
       newErrors.email = "Email is invalid";
+    } else if (email.length > MAX_EMAIL_LENGTH) {
+      newErrors.email = "Email is too long";
+    }
 
-    if (!formData.password) newErrors.password = "Password is required";
-    else if (formData.password.length < 6)
-      newErrors.password = "Password must be ≥ 6 chars";
+    const password = formData.password || "";
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < MIN_PASSWORD_LENGTH) {
+      newErrors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+    } else if (password.length > MAX_PASSWORD_LENGTH) {
+      newErrors.password = "Password is too long";
+    }
 
     if (!isLogin) {
-      if (!formData.name) newErrors.name = "Name is required";
-      if (formData.password !== formData.confirmPassword)
+      const name = formData.name ? sanitizeInput(formData.name) : "";
+      if (!name) {
+        newErrors.name = "Name is required";
+      } else if (name.length < MIN_NAME_LENGTH) {
+        newErrors.name = `Name must be at least ${MIN_NAME_LENGTH} characters`;
+      } else if (name.length > MAX_NAME_LENGTH) {
+        newErrors.name = "Name is too long";
+      }
+
+      if (password && password !== formData.confirmPassword) {
         newErrors.confirmPassword = "Passwords do not match";
+      }
     }
 
     setErrors(newErrors);
@@ -56,8 +106,11 @@ const Login = ({ onLogin }) => {
     if (!validateForm()) return;
 
     try {
+      const sanitizedEmail = sanitizeInput(formData.email);
+      const sanitizedName = formData.name ? sanitizeInput(formData.name) : "";
+
       if (isLogin) {
-        const user = await getUserByEmail(formData.email);
+        const user = await getUserByEmail(sanitizedEmail);
         if (!user) {
           setErrors({ email: "No account with this email" });
           return;
@@ -67,27 +120,28 @@ const Login = ({ onLogin }) => {
           return;
         }
       } else {
-        const existing = await getUserByEmail(formData.email);
+        const existing = await getUserByEmail(sanitizedEmail);
         if (existing) {
           setErrors({ email: "Email already registered" });
           return;
         }
         await addUser({
-          email: formData.email,
+          email: sanitizedEmail,
           password: formData.password,
-          name: formData.name,
+          name: sanitizedName,
         });
       }
 
-      // ✅ Save authentication and notify parent
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("userEmail", formData.email);
-      if (onLogin) onLogin(); // 👈 Update App.jsx immediately
+      if (onLogin) onLogin();
 
       navigate("/tasks");
     } catch (err) {
       console.error("DB ERROR:", err);
-      alert("Database error – check console");
+      setErrors({ 
+        general: err.message || "Database error occurred. Please try again." 
+      });
     }
   };
 
@@ -100,8 +154,24 @@ const Login = ({ onLogin }) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p>Loading database...</p>
+          {dbError ? (
+            <>
+              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
+                {dbError}
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+              >
+                Reload Page
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+              <p>Loading database...</p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -122,8 +192,12 @@ const Login = ({ onLogin }) => {
         </div>
 
         <div className="bg-card rounded-2xl shadow-lg border border-border p-8">
+          {errors.general && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+              {errors.general}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* NAME (signup only) */}
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -139,7 +213,6 @@ const Login = ({ onLogin }) => {
               </div>
             )}
 
-            {/* EMAIL */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -153,7 +226,6 @@ const Login = ({ onLogin }) => {
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
 
-            {/* PASSWORD */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -167,7 +239,6 @@ const Login = ({ onLogin }) => {
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
 
-            {/* CONFIRM PASSWORD (signup only) */}
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -189,7 +260,6 @@ const Login = ({ onLogin }) => {
               </div>
             )}
 
-            {/* REMEMBER ME (login only) */}
             {isLogin && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -208,14 +278,12 @@ const Login = ({ onLogin }) => {
               </div>
             )}
 
-            {/* SUBMIT BUTTON */}
             <Button type="submit">
               {isLogin ? "Sign in" : "Create account"}
               <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Button>
           </form>
 
-          {/* TOGGLE LOGIN/SIGNUP */}
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}

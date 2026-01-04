@@ -1,4 +1,3 @@
-// src/components/TaskStats.jsx
 import React from 'react';
 
 export default function TaskStats({ tasks }) {

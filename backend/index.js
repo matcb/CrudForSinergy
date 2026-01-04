@@ -2,18 +2,21 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { getConnection } from "./config/db.js";
-/*import authRoutes from "./routes/auth.js"; // Add back if needed
-import taskRoutes from "./routes/tasks.js"; // Add back if needed*/
+import taskRoutes from "./routes/task.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
 
-/*app.use("/api/auth", authRoutes);
-app.use("/api/tasks", taskRoutes);*/
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use("/api/tasks", taskRoutes);
 
 (async () => {
   try {

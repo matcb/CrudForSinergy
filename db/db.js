@@ -1,31 +1,43 @@
 
-let db;
+let db = null;
+let initPromise = null;
 const DB_NAME = "CrudForSinergy";
 const DB_VERSION = 3; 
 const TASK_STORE = "tasks";
 const USER_STORE = "users";
 
-
-export const initDB = () => {
-  return new Promise((resolve, reject) => {
+const getDB = async () => {
+  if (db) return db;
+  if (initPromise) return initPromise;
+  
+  initPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onerror = () => reject("Erro ao conectar com banco de dados");
+    request.onerror = () => {
+      initPromise = null;
+      reject("Erro ao conectar com banco de dados");
+    };
 
     request.onsuccess = (e) => {
       db = e.target.result;
       db.onversionchange = () => {
         db.close();
+        db = null;
+        initPromise = null;
         console.log("Database connection closed due to version change.");
+      };
+      db.onerror = () => {
+        db = null;
+        initPromise = null;
       };
       resolve(db);
     };
 
     request.onupgradeneeded = (e) => {
-      db = e.target.result;
+      const upgradeDb = e.target.result;
 
-      if (!db.objectStoreNames.contains(TASK_STORE)) {
-        const taskStore = db.createObjectStore(TASK_STORE, {
+      if (!upgradeDb.objectStoreNames.contains(TASK_STORE)) {
+        const taskStore = upgradeDb.createObjectStore(TASK_STORE, {
           keyPath: "id",
           autoIncrement: true,
         });
@@ -33,23 +45,26 @@ export const initDB = () => {
         taskStore.createIndex("status", "status", { unique: false });
         taskStore.createIndex("priority", "priority", { unique: false });
         taskStore.createIndex("createdAt", "createdAt", { unique: false });
-        taskStore.createIndex("userEmail", "userEmail", { unique: false }); // ✅ required
+        taskStore.createIndex("userEmail", "userEmail", { unique: false });
       }
 
-      
-      if (!db.objectStoreNames.contains(USER_STORE)) {
-        const userStore = db.createObjectStore(USER_STORE, {
-          keyPath: "email", // email is the unique identifier
+      if (!upgradeDb.objectStoreNames.contains(USER_STORE)) {
+        const userStore = upgradeDb.createObjectStore(USER_STORE, {
+          keyPath: "email",
         });
         userStore.createIndex("email", "email", { unique: true });
       }
     };
   });
+  
+  return initPromise;
 };
+
+export const initDB = () => getDB();
 
 
 export const addTask = async (task) => {
-  const db = await initDB();
+  const db = await getDB();
   const email = localStorage.getItem("userEmail");
 
   return new Promise((resolve, reject) => {
@@ -58,7 +73,7 @@ export const addTask = async (task) => {
 
     const taskData = {
       ...task,
-      userEmail: email, // associate with logged user
+      userEmail: email,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -71,7 +86,7 @@ export const addTask = async (task) => {
 
 
 export const getAllTasks = async (userEmail = null) => {
-  const db = await initDB();
+  const db = await getDB();
   const email = userEmail || localStorage.getItem("userEmail");
 
   return new Promise((resolve, reject) => {
@@ -96,7 +111,7 @@ export const getAllTasks = async (userEmail = null) => {
 
 
 export const getTaskById = async (id) => {
-  const db = await initDB();
+  const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction([TASK_STORE], "readonly");
     const store = tx.objectStore(TASK_STORE);
@@ -106,8 +121,8 @@ export const getTaskById = async (id) => {
   });
 };
 
-  export const updateTask = async (id, updatedData) => {
-  const db = await initDB();
+export const updateTask = async (id, updatedData) => {
+  const db = await getDB();
   const email = localStorage.getItem("userEmail");
 
   return new Promise((resolve, reject) => {
@@ -138,7 +153,7 @@ export const getTaskById = async (id) => {
 
 
 export const deleteTask = async (id) => {
-  const db = await initDB();
+  const db = await getDB();
   const email = localStorage.getItem("userEmail");
 
   return new Promise((resolve, reject) => {
@@ -163,7 +178,7 @@ export const deleteTask = async (id) => {
 
 
 export const getTasksByStatus = async (status) => {
-  const db = await initDB();
+  const db = await getDB();
   const email = localStorage.getItem("userEmail");
 
   return new Promise((resolve, reject) => {
@@ -184,7 +199,7 @@ export const getTasksByStatus = async (status) => {
 
 
 export const addUser = async (user) => {
-  const db = await initDB();
+  const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction([USER_STORE], "readwrite");
     const store = tx.objectStore(USER_STORE);
@@ -196,7 +211,7 @@ export const addUser = async (user) => {
 
 
 export const getUserByEmail = async (email) => {
-  const db = await initDB();
+  const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction([USER_STORE], "readonly");
     const store = tx.objectStore(USER_STORE);

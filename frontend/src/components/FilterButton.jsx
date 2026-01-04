@@ -1,4 +1,3 @@
-// src/components/FilterButtons.jsx
 import React from 'react';
 
 export default function FilterButtons({ filter, setFilter }) {
